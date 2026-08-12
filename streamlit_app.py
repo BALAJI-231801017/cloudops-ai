@@ -3,6 +3,14 @@ import pandas as pd
 import ollama
 
 # --------------------------------------------------
+# Ollama connection
+# --------------------------------------------------
+
+ollama_client = ollama.Client(
+    host="http://host.docker.internal:11434"
+)
+
+# --------------------------------------------------
 # Page setup
 # --------------------------------------------------
 
@@ -22,10 +30,8 @@ st.subheader("AI-Powered Cloud Application Health Assistant")
 
 data = pd.read_csv("health_data.csv")
 
-# Latest health record
 latest = data.iloc[-1]
 
-# Recent monitoring history
 recent_data = data.tail(6).to_string(index=False)
 
 
@@ -122,12 +128,9 @@ else:
 st.header("Detected Problems")
 
 if issues:
-
     for issue in issues:
         st.warning(issue)
-
 else:
-
     st.success("No major problems detected.")
 
 
@@ -191,7 +194,7 @@ detected problems, and monitoring history.
 
     with st.spinner("AI is analyzing the application..."):
 
-        response = ollama.chat(
+        response = ollama_client.chat(
             model="llama3.2:3b",
             messages=[
                 {
@@ -259,7 +262,7 @@ Rules:
 
         with st.spinner("AI is analyzing..."):
 
-            response = ollama.chat(
+            response = ollama_client.chat(
                 model="llama3.2:3b",
                 messages=[
                     {
