@@ -7,7 +7,7 @@ import ollama
 # --------------------------------------------------
 
 ollama_client = ollama.Client(
-    host="http://host.docker.internal:11434"
+    host="http://127.0.0.1:11434"
 )
 
 # --------------------------------------------------
