@@ -1,0 +1,7 @@
+timestamp,cpu_usage,memory_usage,error_rate,response_time,status
+09:00,35,48,1,0.8,Healthy
+10:00,42,52,1,0.9,Healthy
+11:00,58,60,2,1.2,Healthy
+12:00,75,72,5,2.1,Warning
+13:00,92,85,12,4.8,Critical
+14:00,95,89,15,5.6,Critical
