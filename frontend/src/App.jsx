@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
 
@@ -30,7 +30,7 @@ const DEMO_HEALTH = {
     "Memory Usage is critical (88.2 >= 80.0)",
     "Response Time is critical (4.8 >= 3.5)",
     "Statistical baseline detected CPU anomaly: current 94.5% exceeds dynamic baseline 75.0%",
-    "Isolation Forest identified multivariate anomaly (Score: 0.842, Severity: CRITICAL)"
+    "Isolation Forest identified multivariate anomaly (Normalized Score: 0.842, Severity: CRITICAL)"
   ],
   history: [
     { timestamp: "10:00", cpu_usage: 42, memory_usage: 52, error_rate: 0.8, response_time: 0.9 },
@@ -44,7 +44,7 @@ const DEMO_HEALTH = {
 
 const DEMO_INSTANCES = [{
   id: "i-0987654321fedcba0",
-  name: "cloudops-prod-api",
+  name: "cloudops-demo-instance",
   state: "running",
   type: "t3.medium",
   availability_zone: "ap-south-1a"
@@ -109,12 +109,12 @@ export default function App() {
   const [health, setHealth] = useState(DEMO_HEALTH);
   const [metrics, setMetrics] = useState(DEMO_METRICS);
   const [selectedInstance, setSelectedInstance] = useState(DEMO_INSTANCES[0].id);
-  const [statusMsg, setStatusMsg] = useState("Demo Mode: Standalone client preview (no backend required).");
+  const [statusMsg, setStatusMsg] = useState("Demo Mode: Standalone client preview (no backend requests).");
   const [selectedScenario, setSelectedScenario] = useState("cpu_spike");
   const [isSimulating, setIsSimulating] = useState(false);
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [evalResults, setEvalResults] = useState(null);
-  const [aiQuestion, setAiQuestion] = useState("What is the probable root cause and what immediate remediation is recommended?");
+  const [aiQuestion, setAiQuestion] = useState("What is the probable root cause and what immediate technical remediation is recommended?");
   const [aiDiagnosis, setAiDiagnosis] = useState({
     incident_summary: "Severe CPU and memory saturation detected concurrently with elevated response time.",
     probable_root_cause: "Resource contention caused by intensive background job or connection pool exhaustion.",
@@ -122,14 +122,14 @@ export default function App() {
     supporting_evidence: [
       "CPU usage at 94.5% exceeds critical threshold (80.0%)",
       "Memory utilization at 88.2% exceeds critical threshold (80.0%)",
-      "Isolation Forest anomaly score of 0.842 indicates strong multivariate anomaly"
+      "Isolation Forest normalized anomaly score of 0.842 indicates strong multivariate anomaly"
     ],
     recommended_actions: [
       "Profile high-CPU threads or top worker processes",
       "Inspect database connection pool saturation and query latency",
       "Review recent application code deployments for thread leaks"
     ],
-    limitations: ["Metrics are from single host; cluster-wide metrics require AWS IAM integration."]
+    limitations: ["Metrics are from local telemetry; cluster-wide logs require log aggregation."]
   });
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -140,7 +140,7 @@ export default function App() {
       setHealth(DEMO_HEALTH);
       setMetrics(DEMO_METRICS);
       setSelectedInstance(DEMO_INSTANCES[0].id);
-      setStatusMsg("Demo Mode — Purely client-side preview with simulated critical state.");
+      setStatusMsg("Demo Mode — Purely client-side preview with simulated critical state (no network calls).");
       return;
     }
 
@@ -149,7 +149,7 @@ export default function App() {
       return;
     }
 
-    setStatusMsg(source === "csv" ? "Querying Flask API for CSV Telemetry..." : "Connecting to AWS CloudWatch & EC2 via Flask...");
+    setStatusMsg(source === "csv" ? "Querying Flask API for CSV Telemetry..." : "Connecting to AWS CloudWatch & EC2 via Flask API...");
 
     try {
       const healthRes = await fetch(apiPath("/api/health-analysis"));
@@ -160,7 +160,7 @@ export default function App() {
       if (source === "csv") {
         setInstances(DEMO_INSTANCES);
         setMetrics(DEMO_METRICS);
-        setStatusMsg("Flask + CSV Mode: Telemetry processed by Preprocessor -> Isolation Forest ML -> Incident Classifier.");
+        setStatusMsg("Flask + CSV Mode: 4-feature telemetry processed by Preprocessor → Isolation Forest ML → Incident Classifier.");
         return;
       }
 
@@ -180,7 +180,7 @@ export default function App() {
           setMetrics(metricData);
         }
       }
-      setStatusMsg(`Live AWS Mode: Discovered ${discovered.length} EC2 instance(s) in region ${instPayload.region}.`);
+      setStatusMsg(`Live AWS Mode: Discovered ${discovered.length} EC2 instance(s) in region ${instPayload.region}. (CloudWatch metrics: CPU, NetworkIn, NetworkOut)`);
     } catch (err) {
       setStatusMsg(`Connection Note: ${err.message}. Switch to Demo or Simulation mode if Flask / AWS is offline.`);
     }
@@ -215,7 +215,7 @@ export default function App() {
       if (data.analysis) {
         setAiDiagnosis(data.analysis);
       }
-      setStatusMsg(`Simulation Mode: Executed scenario '${scenarioId}' through Preprocessor -> Isolation Forest ML -> Classifier.`);
+      setStatusMsg(`Simulation Mode: Injected scenario '${scenarioId}' through Preprocessor → Isolation Forest ML → Classifier.`);
     } catch (err) {
       setStatusMsg(`Simulation Error: ${err.message}. Ensure Flask backend is running on port 5000.`);
     } finally {
@@ -246,10 +246,10 @@ export default function App() {
         supporting_evidence: [
           "CPU Usage (94.5%) > 80.0% critical threshold",
           "Memory Usage (88.2%) > 80.0% critical threshold",
-          "Isolation Forest anomaly score = 0.842"
+          "Isolation Forest normalized anomaly score = 0.842"
         ],
         recommended_actions: [
-          "Inspect CPU-heavy worker processes with `top` or AWS CloudWatch Container Insights",
+          "Inspect CPU-heavy worker processes with `top` or CloudWatch Container Insights",
           "Verify application heap allocation and garbage collection pauses",
           "Consider horizontal scaling if traffic surge is sustained"
         ],
@@ -271,7 +271,7 @@ export default function App() {
       if (!res.ok) throw new Error(`AI Analysis failed (${res.status})`);
       const payload = await res.json();
       setAiDiagnosis(payload.analysis);
-      setStatusMsg(payload.ai_available ? "AI Root-Cause Diagnosis complete (Ollama / Llama 3.2)." : "AI Service unavailable (Deterministic rules active).");
+      setStatusMsg(payload.ai_available ? "AI Root-Cause Diagnosis complete (Llama 3.2 via Ollama)." : "AI Service unavailable (Deterministic rules active).");
     } catch (err) {
       setStatusMsg(`AI Diagnosis Note: ${err.message}`);
     } finally {
@@ -308,9 +308,9 @@ export default function App() {
               className="select-input"
             >
               <option value="demo">Demo Mode (Client Preview)</option>
-              <option value="csv">Flask + CSV Telemetry</option>
+              <option value="csv">Flask + CSV Telemetry (4 Features)</option>
               <option value="simulation">Simulation Runner (8 Scenarios)</option>
-              <option value="aws">Live AWS Telemetry (Read-Only)</option>
+              <option value="aws">Live AWS Telemetry (CloudWatch Read-Only)</option>
             </select>
           </div>
           <button onClick={() => loadDashboard()} className="btn btn-primary">Refresh</button>
@@ -330,11 +330,11 @@ export default function App() {
       {showEvaluation && evalResults && (
         <section className="eval-panel">
           <div className="panel-header">
-            <h2>Model Benchmark Evaluation (Baseline vs Isolation Forest)</h2>
+            <h2>Synthetic Evaluation Benchmark (Baseline vs Isolation Forest)</h2>
             <button onClick={() => setShowEvaluation(false)} className="btn-close">✕</button>
           </div>
           <p className="subtle">
-            Evaluated on synthetic test dataset ({evalResults.total_eval_samples} samples across 8 scenarios with ground truth labels).
+            Evaluated on synthetic evaluation dataset ({evalResults.total_eval_samples} samples across 8 scenarios with ground truth labels).
           </p>
           <div className="table-wrapper">
             <table className="eval-table">
@@ -359,18 +359,18 @@ export default function App() {
             </table>
           </div>
 
-          <h3 style={{ marginTop: "1rem" }}>Per-Scenario Detection Rates (Ground Truth)</h3>
+          <h3 style={{ marginTop: "1rem" }}>Per-Scenario Accuracy (Recall on Anomaly, Specificity on Nominal)</h3>
           <div className="scenario-grid">
             {Object.entries(evalResults.scenario_breakdown || {}).map(([scName, scData]) => (
               <div key={scName} className="scenario-card">
                 <strong>{scName}</strong>
                 <span className={scData.is_anomaly_scenario ? "badge badge-crit" : "badge badge-ok"}>
-                  {scData.is_anomaly_scenario ? "ANOMALY" : "NORMAL"}
+                  {scData.is_anomaly_scenario ? "ANOMALY" : "NOMINAL"}
                 </span>
                 <div className="sc-rates">
-                  <div>Baseline: {(scData.baseline_detection_rate * 100).toFixed(0)}%</div>
-                  <div>Isolation Forest: <strong>{(scData.iforest_detection_rate * 100).toFixed(0)}%</strong></div>
-                  <div>Pipeline: <strong style={{ color: "#10b981" }}>{(scData.pipeline_detection_rate * 100).toFixed(0)}%</strong></div>
+                  <div>Baseline: {(scData.baseline_accuracy_rate * 100).toFixed(0)}%</div>
+                  <div>Isolation Forest: <strong>{(scData.iforest_accuracy_rate * 100).toFixed(0)}%</strong></div>
+                  <div>Pipeline: <strong style={{ color: "#10b981" }}>{(scData.pipeline_accuracy_rate * 100).toFixed(0)}%</strong></div>
                 </div>
               </div>
             ))}
@@ -383,7 +383,7 @@ export default function App() {
         <section className="simulation-toolbar">
           <div className="sim-title">
             <strong>Interactive Incident Simulator</strong>
-            <span className="subtle">Injects realistic synthetic degradation patterns through the full ML + Classification pipeline</span>
+            <span className="subtle">Injects controlled synthetic failure patterns through Preprocessor → Isolation Forest → Classifier</span>
           </div>
           <div className="sim-controls">
             <select
@@ -445,7 +445,7 @@ export default function App() {
                 </strong>
               </div>
               <div className="detector-row">
-                <span>Anomaly Score (Normalized):</span>
+                <span>Normalized Anomaly Score [0.0 - 1.0]:</span>
                 <strong>{health.anomaly_score ?? health.ml_result?.anomaly_score ?? 0.0}</strong>
               </div>
               <div className="detector-row">
@@ -536,14 +536,14 @@ export default function App() {
                 <strong>Probable Root Cause:</strong>
                 <p>{aiDiagnosis.probable_root_cause}</p>
                 <div className="confidence-meter">
-                  <span>Confidence: {(aiDiagnosis.confidence * 100).toFixed(0)}%</span>
+                  <span>LLM-Reported Confidence Estimate: {(aiDiagnosis.confidence * 100).toFixed(0)}%</span>
                   <div className="bar"><div className="fill" style={{ width: `${aiDiagnosis.confidence * 100}%` }}></div></div>
                 </div>
               </div>
 
               {aiDiagnosis.recommended_actions?.length > 0 && (
                 <div className="ai-actions">
-                  <strong>Recommended Troubleshooting Actions:</strong>
+                  <strong>Recommended Advisory Actions:</strong>
                   <ul>
                     {aiDiagnosis.recommended_actions.map((act, i) => (
                       <li key={i}>{act}</li>
@@ -590,7 +590,7 @@ export default function App() {
       {/* Footer */}
       <footer className="app-footer">
         <div>CloudOps AI · Final Year Artificial Intelligence & Data Science Engineering Project</div>
-        <div>Architectural Principle: ML Detects Anomalies → Deterministic Logic Classifies → Llama Explains Evidence</div>
+        <div>Architecture: ML Anomaly Detection → Deterministic Classification → Grounded Llama 3.2 Advisory</div>
       </footer>
     </div>
   );

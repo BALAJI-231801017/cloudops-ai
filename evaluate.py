@@ -1,7 +1,7 @@
 ﻿"""Comprehensive model evaluation benchmark: Baseline Detector vs. Isolation Forest.
 
 Evaluates detectors against ground-truth labels on the synthetic evaluation dataset.
-Calculates Precision, Recall, F1-score, False Positive Rate (FPR), and per-scenario detection rate.
+Calculates Precision, Recall, F1-score, False Positive Rate (FPR), and per-scenario classification behavior.
 """
 
 import json
@@ -55,7 +55,6 @@ def run_benchmark(
     t0 = time.perf_counter()
     for idx in range(total_samples):
         cpu_val = float(eval_df.loc[idx, "cpu_usage"])
-        # Classical rule baseline only inspects CPU spikes
         baseline_preds.append(1 if cpu_val > 80.0 else 0)
     baseline_latency_ms = ((time.perf_counter() - t0) / total_samples) * 1000.0
     y_pred_baseline = np.array(baseline_preds, dtype=int)
@@ -108,7 +107,6 @@ def run_benchmark(
             "false_negatives": fn,
             "precision": round(precision, 4),
             "recall": round(recall, 4),
-            "detection_rate": round(recall, 4),
             "f1_score": round(f1, 4),
             "false_positive_rate": round(fpr, 4),
             "accuracy": round(accuracy, 4),
@@ -134,16 +132,17 @@ def run_benchmark(
         scenario_breakdown[sc] = {
             "is_anomaly_scenario": is_anom_sc,
             "sample_count": int(np.sum(mask)),
-            "baseline_detected_count": int(np.sum(sub_base == 1)),
-            "iforest_detected_count": int(np.sum(sub_if == 1)),
-            "pipeline_detected_count": int(np.sum(sub_pipe == 1)),
-            "baseline_detection_rate": round(float(np.mean(sub_base == 1) if is_anom_sc else np.mean(sub_base == 0)), 3),
-            "iforest_detection_rate": round(float(np.mean(sub_if == 1) if is_anom_sc else np.mean(sub_if == 0)), 3),
-            "pipeline_detection_rate": round(float(np.mean(sub_pipe == 1) if is_anom_sc else np.mean(sub_pipe == 0)), 3),
+            "baseline_correct_count": int(np.sum(sub_base == (1 if is_anom_sc else 0))),
+            "iforest_correct_count": int(np.sum(sub_if == (1 if is_anom_sc else 0))),
+            "pipeline_correct_count": int(np.sum(sub_pipe == (1 if is_anom_sc else 0))),
+            "baseline_accuracy_rate": round(float(np.mean(sub_base == (1 if is_anom_sc else 0))), 3),
+            "iforest_accuracy_rate": round(float(np.mean(sub_if == (1 if is_anom_sc else 0))), 3),
+            "pipeline_accuracy_rate": round(float(np.mean(sub_pipe == (1 if is_anom_sc else 0))), 3),
         }
 
     results = {
         "benchmark_timestamp": pd.Timestamp.now().isoformat(),
+        "benchmark_name": "Synthetic Evaluation Benchmark",
         "total_eval_samples": total_samples,
         "anomalous_samples": int(np.sum(y_true == 1)),
         "nominal_samples": int(np.sum(y_true == 0)),
@@ -161,30 +160,30 @@ def run_benchmark(
         json.dump(results, f, indent=2)
 
     # Print summary table using ASCII
-    print("\n" + "=" * 80)
-    print(" CLOUDOPS AI - ANOMALY DETECTION BENCHMARK EVALUATION")
-    print("=" * 80)
+    print("\n" + "=" * 85)
+    print(" CLOUDOPS AI - ANOMALY DETECTION BENCHMARK EVALUATION (SYNTHETIC BENCHMARK)")
+    print("=" * 85)
     print(f"Dataset: Synthetic Evaluation Dataset ({total_samples} samples across 8 distinct scenarios)")
-    print("-" * 80)
+    print("-" * 85)
     header = f"{'Metric':<22} | {'Baseline (CPU Rule)':<20} | {'Isolation Forest (ML)':<22} | {'Unified Pipeline':<18}"
     print(header)
-    print("-" * 80)
+    print("-" * 85)
     for m in ["precision", "recall", "f1_score", "false_positive_rate", "accuracy", "avg_latency_ms"]:
         b_val = f"{baseline_metrics[m]:.4f}" if "latency" not in m else f"{baseline_metrics[m]:.3f} ms"
         i_val = f"{iforest_metrics[m]:.4f}" if "latency" not in m else f"{iforest_metrics[m]:.3f} ms"
         p_val = f"{pipeline_metrics[m]:.4f}" if "latency" not in m else f"{pipeline_metrics[m]:.3f} ms"
         print(f"{m.replace('_', ' ').title():<22} | {b_val:<20} | {i_val:<22} | {p_val:<18}")
-    print("-" * 80)
-    print("\nScenario Breakdown (Detection Rate on Ground Truth):")
-    print(f"{'Scenario':<22} | {'Type':<10} | {'Baseline':<10} | {'Isolation Forest':<18} | {'Pipeline':<10}")
-    print("-" * 80)
+    print("-" * 85)
+    print("\nPer-Scenario Accuracy (Recall on Anomaly Scenarios, Specificity on Nominal):")
+    print(f"{'Scenario':<22} | {'Category':<10} | {'Baseline':<10} | {'Isolation Forest':<18} | {'Pipeline':<10}")
+    print("-" * 85)
     for sc, info in scenario_breakdown.items():
-        stype = "ANOMALY" if info["is_anomaly_scenario"] else "NORMAL"
-        b_rate = f"{info['baseline_detection_rate']*100:.1f}%"
-        i_rate = f"{info['iforest_detection_rate']*100:.1f}%"
-        p_rate = f"{info['pipeline_detection_rate']*100:.1f}%"
+        stype = "ANOMALY" if info["is_anomaly_scenario"] else "NOMINAL"
+        b_rate = f"{info['baseline_accuracy_rate']*100:.1f}%"
+        i_rate = f"{info['iforest_accuracy_rate']*100:.1f}%"
+        p_rate = f"{info['pipeline_accuracy_rate']*100:.1f}%"
         print(f"{sc:<22} | {stype:<10} | {b_rate:<10} | {i_rate:<18} | {p_rate:<10}")
-    print("=" * 80 + "\n")
+    print("=" * 85 + "\n")
 
     return results
 
