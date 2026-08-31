@@ -1,81 +1,78 @@
-import pandas as pd
-import ollama
+﻿"""CloudOps AI - Interactive CLI Demonstration Tool.
 
-# Read health data
-data = pd.read_csv("health_data.csv")
-
-# Get the latest health record
-latest = data.iloc[-1]
-
-print("Latest Application Status")
-print("-------------------------")
-
-print("CPU Usage:", latest["cpu_usage"], "%")
-print("Memory Usage:", latest["memory_usage"], "%")
-print("Error Rate:", latest["error_rate"], "%")
-print("Response Time:", latest["response_time"], "seconds")
-print("Status:", latest["status"])
-
-
-# Detect problems using Python
-issues = []
-
-if latest["cpu_usage"] > 80:
-    issues.append("CPU usage is very high.")
-
-if latest["memory_usage"] > 80:
-    issues.append("Memory usage is very high.")
-
-if latest["error_rate"] > 10:
-    issues.append("Error rate is very high.")
-
-if latest["response_time"] > 3:
-    issues.append("Response time is very high.")
-
-
-# Display detected problems
-print("\nDetected Problems")
-print("-----------------")
-
-for issue in issues:
-    print("-", issue)
-
-
-# Ask AI to explain the detected problems
-prompt = f"""
-You are a CloudOps application health assistant.
-
-The Python monitoring system detected these problems:
-
-{issues}
-
-Current application status:
-CPU: {latest["cpu_usage"]}%
-Memory: {latest["memory_usage"]}%
-Error rate: {latest["error_rate"]}%
-Response time: {latest["response_time"]} seconds
-Status: {latest["status"]}
-
-Explain:
-1. What is happening?
-2. What are the likely causes?
-3. What should the user do?
-
-Use simple, concise language.
-Do not invent monitoring data.
-Base your explanation on the detected problems and the provided metrics.
+Executes the end-to-end monitoring pipeline from the command line:
+Metric Ingestion -> Preprocessing -> Isolation Forest ML -> Classification -> LLM Root-Cause Analysis.
 """
 
-response = ollama.chat(
-    model="llama3.2:3b",
-    messages=[
-        {
-            "role": "user",
-            "content": prompt
-        }
-    ]
-)
+import sys
+import pandas as pd
 
-print("\nAI Diagnosis")
-print("------------")
-print(response["message"]["content"])
+from backend.ai_service import AiService, AiServiceError
+from backend.config import Settings
+from backend.health_service import HealthService
+from backend.ml.detector import IsolationForestDetector
+
+
+def main():
+    print("=" * 70)
+    print(" CLOUDOPS AI - INFRASTRUCTURE HEALTH & INCIDENT DIAGNOSTIC CLI")
+    print("=" * 70)
+
+    settings = Settings()
+
+    # Load ML detector
+    detector = IsolationForestDetector()
+    try:
+        detector.load(settings.model_path)
+        print(f"[ML Engine] Loaded Isolation Forest detector ({settings.model_path})")
+    except Exception:
+        print("[ML Engine] Model artifact not found. Run: python -m backend.ml.train")
+
+    health_svc = HealthService(data_path=settings.health_data_path, detector=detector)
+    ai_svc = AiService(settings)
+
+    print(f"[Telemetry] Ingesting health records from: {settings.health_data_path}")
+    try:
+        report = health_svc.analyze()
+    except Exception as e:
+        print(f"[ERROR] Failed to process telemetry: {e}")
+        sys.exit(1)
+
+    latest = report["latest"]
+    print("\n--- Current Metric State ---")
+    print(f" CPU Utilization : {latest['cpu_usage']}%")
+    print(f" Memory Usage    : {latest['memory_usage']}%")
+    print(f" Error Rate      : {latest['error_rate']}%")
+    print(f" Response Time   : {latest['response_time']}s")
+    print(f" Health Score    : {report['health_score']}/100 ({report['severity']})")
+
+    print("\n--- Detection & Classification ---")
+    print(f" Incident Type   : {report['incident_type']}")
+    print(f" Primary Detector: {report['primary_detector']}")
+    print(f" Anomaly Score   : {report['anomaly_score']}")
+    print(f" Anomaly State   : {'ANOMALOUS' if report['is_anomaly'] else 'NOMINAL'}")
+
+    print("\n--- Evidence Statements ---")
+    for stmt in report["evidence_statements"]:
+        print(f" * {stmt}")
+
+    print("\n--- LLM Root-Cause Analysis (Llama 3.2 via Ollama) ---")
+    try:
+        diagnosis = ai_svc.analyze(
+            question="Diagnose current incident and recommend technical remediation.",
+            evidence=report["evidence"]
+        )
+        print(f"\nSummary: {diagnosis.get('incident_summary')}")
+        print(f"Root Cause: {diagnosis.get('probable_root_cause')}")
+        print(f"Confidence: {int(diagnosis.get('confidence', 0) * 100)}%")
+        print("Recommended Actions:")
+        for action in diagnosis.get("recommended_actions", []):
+            print(f" - {action}")
+    except AiServiceError as err:
+        print(f"[NOTE] Local LLM offline ({err}). Deterministic classification displayed above.")
+
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()

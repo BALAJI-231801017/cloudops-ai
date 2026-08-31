@@ -1,8 +1,52 @@
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-.venv/
-venv/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
 .env
-.streamlit/secrets.toml
+.venv
+env/
+venv/
+ENV/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+node_modules/
 frontend/node_modules/
 frontend/dist/
+.npm
+
+# Machine Learning Artifacts
+*.pkl
+backend/ml/model.pkl
+evaluation_results.json
+
+# IDEs & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

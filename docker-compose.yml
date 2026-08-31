@@ -1,0 +1,35 @@
+﻿version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloudops-ai-api
+    ports:
+      - "5000:5000"
+    environment:
+      - AWS_REGION=ap-south-1
+      - CLOUDOPS_AWS_PROFILE=
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      - HEALTH_DATA_PATH=health_data.csv
+      - MODEL_PATH=backend/ml/model.pkl
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - LOG_LEVEL=INFO
+      - FLASK_DEBUG=0
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cloudops-ai-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
